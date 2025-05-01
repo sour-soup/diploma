@@ -1,0 +1,69 @@
+\documentclass[bachelor, och, diploma]{SCWorks}
+% параметр - тип обучения - одно из значений:
+%    spec     - специальность
+%    bachelor - бакалавриат (по умолчанию)
+%    master   - магистратура
+% параметр - форма обучения - одно из значений:
+%    och   - очное (по умолчанию)
+%    zaoch - заочное
+% параметр - тип работы - одно из значений:
+%    referat    - реферат
+%    coursework - курсовая работа (по умолчанию)
+%    diploma    - дипломная работа
+%    pract      - отчет по практике
+%    pract      - отчет о научно-исследовательской работе
+%    autoref    - автореферат выпускной работы
+%    assignment - задание на выпускную квалификационную работу
+%    review     - отзыв руководителя
+%    critique   - рецензия на выпускную работу
+% параметр - включение шрифта
+%    times    - включение шрифта Times New Roman (если установлен)
+%               по умолчанию выключен
+\usepackage[T2A]{fontenc}
+\usepackage[cp1251]{inputenc}
+\usepackage{graphicx}
+\graphicspath{{img/}}
+
+\usepackage[sort,compress]{cite}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{fancyvrb}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage[english,russian]{babel}
+\usepackage{tempora}
+
+\usepackage[colorlinks=false]{hyperref}
+
+
+\newcommand{\eqdef}{\stackrel {\rm def}{=}}
+
+\begin{document}
+
+\chair{информатики и программирования}
+
+\course{4}
+\group{441}
+\title{Создание рекомендательной системы для приложения знакомств}
+\department{факультета компьютерных наук и информационных технологий}
+\napravlenie{02.03.03 "--- Математическое обеспечение и администрирование информационных систем}
+\author{Уталиева Султана Едильбаевича}
+\date{2025}
+% Заведующий кафедрой
+\chtitle{к.\,ф.-м.\,н.,\, доцент} % степень, звание
+\chname{Огнева\,М.\,В.}
+
+%Научный руководитель (для реферата преподаватель проверяющий работу)
+\satitle{ст.преп. кафедры ИиП}
+\saname{А.\,A.\,Казачкова}
+
+\maketitle
+
+\tableofcontents
+	
+
+\bibliographystyle{gost}
+\bibliography{thesis}
+
+\end{document}
