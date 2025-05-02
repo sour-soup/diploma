@@ -440,6 +440,7 @@
 %\AddEnumerateCounter{\asbuk}{\@asbuk}{\cyrm}
 
 \makeatletter
+\renewcommand{\l@subsubsection}[2]{}
 \def\redeflsection{\def\l@section{\@dottedtocline{1}{0em}{10em}}}
 \renewcommand{\appendix}{\par%
 
