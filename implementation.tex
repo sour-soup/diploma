@@ -1,12 +1,462 @@
 % !TeX encoding = windows-1251
-\section{Реализация рекомендательной системы}
+\section{Реализация приложения для знакомств}
 
-\subsection{Выбор инструментов и библиотек}
+\subsection{Реализация кроссплатформенной клиентской части}
 
-\subsection{Реализация микросервиса на Python}
+Клиентская часть мобильного приложения для знакомств была разработана с использованием фреймворка Flutter и языка программирования Dart. Выбор данной технологии обусловлен ее способностью обеспечивать кроссплатформенную разработку с единой кодовой базой для операционных систем iOS и Android, а также высокой производительностью и гибкостью в создании пользовательских интерфейсов. Основной задачей при разработке клиентской части являлось создание интуитивно понятного, отзывчивого и функционального интерфейса, обеспечивающего комфортное взаимодействие пользователя с системой. Архитектура приложения ориентирована на модульность и переиспользование компонентов, что упрощает поддержку и дальнейшее развитие проекта.
 
-\subsection{Интеграция микросервиса с Java Spring}
+Точкой входа в приложение является файл main.dart, который инициализирует корневой виджет и определяет глобальные настройки, такие как тема оформления и система навигации. Этот процесс инициализации и определения маршрутов можно увидеть в следующем фрагменте кода. В приложении реализована единая темная тема для консистентного визуального восприятия на всех экранах. Маршрутизация между экранами осуществляется с помощью именованных маршрутов, что позволяет структурировать навигацию и упрощает переходы.
 
-\subsection{Примеры API-запросов и сценарии использования}
+\begingroup % Начало группы для изменения размера шрифта
+\small\ttfamily
+\begin{Verbatim}
+// Фрагмент main.dart
+class MyApp extends StatelessWidget {
+	const MyApp({super.key});	
+	@override
+	Widget build(BuildContext context) {
+		return MaterialApp(
+		title: 'Bim Bim App',
+		theme: ThemeData(
+		brightness: Brightness.dark,
+		scaffoldBackgroundColor: //...
+		),
+		initialRoute: '/login',
+		routes: {
+			'/login': (context) => const LoginScreen(),
+			'/register': (context) => const RegisterScreen(),
+			'/home': (context) => const MainScreen(),
+			'/messenger': (context) => const MessengerPage(),
+			'/editProfile': (context) => const EditProfilePage(),
+		},
+		);
+	}
+}
+\end{Verbatim}
+\endgroup % Конец группы для изменения размера шрифта
 
-\subsection{Тестирование работоспособности}
+Взаимодействие с серверной частью осуществляется через специально разработанный сервис ApiClient, расположенный в services/api\_client.dart. Этот класс инкапсулирует логику отправки HTTP-запросов (GET, POST, PUT, DELETE), а также загрузки файлов на сервер. Базовый URL для всех API-запросов вынесен в файл констант constants/constants.dart.
+
+Ключевым аспектом безопасности при взаимодействии с API является использование JWT-токенов. После успешной аутентификации пользователя сервер возвращает JWT-токен, который сохраняется в локальном хранилище устройства с помощью пакета shared\_preferences. ApiClient автоматически извлекает этот токен и добавляет его в заголовки всех последующих защищенных запросов в виде <<Authorization: Bearer <token>\ >>. Пример реализации этого механизма представлен ниже.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+// Фрагмент services/api_client.dart
+Future<Map<String, String>> _getHeaders({Map<String, String>? extraHeaders}) async {
+	final prefs = await SharedPreferences.getInstance();
+	final token = prefs.getString('jwt_token');
+	final headers = <String, String>{
+		'Content-Type': 'application/json',
+		if (token != null) 'Authorization': 'Bearer ' + token,
+		...?extraHeaders,
+	};
+	return headers;
+}
+
+Future<http.Response> post(String endpoint, 
+	{Object? body, Map<String, String>? headers}) async {
+	final fullHeaders = await _getHeaders(extraHeaders: headers);
+	final url = Uri.parse(endpoint);
+	return http.post(url, headers: fullHeaders, body: body);
+}
+\end{Verbatim}
+\endgroup
+
+Модуль аутентификации включает экраны входа (screens/login\_screen.dart) и регистрации (screens/register\_screen.dart). Экран входа позволяет пользователю ввести свои учетные данные, которые затем отправляются на сервер через ApiClient на эндпоинт /auth/login. В случае успеха, полученный JWT-токен сохраняется, и пользователь перенаправляется на главный экран приложения. Логика этого процесса показана в следующем фрагменте кода.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+// Фрагмент screens/login_screen.dart
+Future<void> _login() async {
+	final String username = _usernameController.text;
+	final String password = _passwordController.text;
+	// ...
+	try {
+		final response = await _apiClient.post(
+		'$baseUrl/auth/login',
+		body: jsonEncode({'username': username, 'password': password})
+		);
+		
+		if (response.statusCode == 200) {
+			final Map<String, dynamic> responseData = jsonDecode(response.body);
+			if (responseData.containsKey('token')) {
+				final String token = responseData['token'];
+				final prefs = await SharedPreferences.getInstance();
+				await prefs.setString('jwt_token', token);
+				Navigator.pushReplacementNamed(context, '/home');
+			} // ...
+		} // ...
+	} catch (e) { /* ... */ }
+}
+\end{Verbatim}
+\endgroup
+
+Главный экран приложения (screens/main\_screen.dart) служит центральным узлом навигации после аутентификации. Он содержит BottomNavigationBar для переключения между основными разделами: «Вопросы», «Рекомендации», «Чаты» и «Админка» (для администраторов).
+
+Управление профилем пользователя реализовано на странице screens/pages/\-profile\_page.dart. Здесь отображается информация о пользователе, предоставляется возможность загрузки нового аватара и перехода к редактированию профиля. Загрузка аватара, механизм которой приведен ниже, осуществляется методом uploadMultipart класса ApiClient.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+// Фрагмент screens/pages/profile_page.dart
+Future<void> _uploadAvatarToBackend(File imageFile) async {
+	try {
+		final file = await http.MultipartFile.fromPath('image', imageFile.path);
+		final response = await _apiClient.uploadMultipart(
+		  endpoint: '$baseUrl/user/updateAvatar', 
+		  files: [file],
+		  fields: {'type': 'image'}
+		);
+		if (response.statusCode == 200) {
+			_fetchUserData();
+		} // ...
+	} catch (e) { /* ... */ }
+}
+\end{Verbatim}
+\endgroup
+
+Важной частью функционала является система подбора партнеров, основанная на ответах пользователей на вопросы в разделе «Тесты» (screens/pages/tests\_page.dart). Пользователи отвечают на вопросы, свайпая карточки. Использование виджета SwipeCards для этой цели демонстрируется в коде ниже. Эти ответы отправляются на сервер и используются для формирования профиля интересов.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+// Фрагмент screens/pages/tests_page.dart
+void _initializeSwipeItems() {
+	if (_questions.isNotEmpty) {
+		_swipeItems = _questions.map((question) {
+			QuestionItem questionItem = QuestionItem(
+			  id: question['id'].toString(),
+			  content: question['content'],
+			  answerLeft: question['answerLeft'],
+			  answerRight: question['answerRight'],
+			);
+			return SwipeItem(
+			  content: questionItem,
+			  likeAction: () => _onAnswer(questionItem.id, 1),
+			  nopeAction: () => _onAnswer(questionItem.id, -1),
+			  superlikeAction: () => _onAnswer(questionItem.id, 0),
+			);
+		}).toList();
+		setState(() {
+			_matchEngine = MatchEngine(swipeItems: _swipeItems);
+		});
+	}
+\end{Verbatim}
+\endgroup
+
+На странице <<Рекомендации>> (screens/pages/people\_page.dart) отображаются профили других пользователей с указанием процента «сходства». Загрузка таких рекомендаций и их последующее отображение в виде списка проиллюстрированы в следующем фрагменте.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+// Фрагмент screens/pages/people_page.dart
+Future<void> _fetchPeople(int? categoryId) async {
+	// ...
+	final response = await _apiClient.get('$baseUrl/matching/$categoryId');
+	if (response.statusCode == 200) {
+		final data = json.decode(response.body) as List<dynamic>;
+		setState(() {
+			_people = data.map((e) => e as Map<String, dynamic>).toList();
+			// ...
+		});
+	}
+	// ...
+}
+ListView.builder(
+	itemCount: sortedPeople.length,
+	itemBuilder: (context, index) {
+		final person = sortedPeople[index];
+		return ListTile(
+		  leading: CircleAvatar(backgroundImage: NetworkImage(person['avatar'])),
+		  title: Text(person['username']),
+		  subtitle: Text('Сходство: ${person['similarity']}%'),
+	 	  // ...
+		);
+	},
+)
+\end{Verbatim}
+\endgroup
+
+Модуль обмена сообщениями состоит из списка чатов (screens/pages/\-messenger\_page.dart) и экрана самого чата (screens/pages/chat\_page.dart). Экран чата отображает историю переписки и позволяет отправлять текстовые сообщения и изображения. Для обработки реального времени и получения новых сообщений используется периодический опрос сервера (Timer.periodic). Реализация этого механизма обновления показана ниже.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+// Фрагмент screens/pages/chat_page.dart
+@override
+void initState() {
+	super.initState();
+	_loadMessages();
+	_updateTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+		if (mounted) {
+			_loadMessages();
+		}
+	});
+}
+Future<void> _loadMessages() async {
+	// ...
+	final response = await _apiClient.get('$baseUrl/chat/${widget.chatId}/messages');
+	// ...
+}
+\end{Verbatim}
+\endgroup
+
+Таким образом, клиентская часть мобильного приложения для знакомств реализована с использованием современных подходов и инструментов фреймворка Flutter. Особое внимание уделено структурированию кода, обеспечению безопасности передачи данных через JWT-токены и созданию удобного пользовательского интерфейса для всех ключевых функций приложения.
+
+Понял вас. Исправил verbatim на Verbatim и постарался убрать лишние пустые строки в фрагментах кода.
+
+Вот обновленная версия раздела:
+
+\subsection{Реализация масштабируемой серверной части}
+
+Серверная часть мобильного приложения для знакомств разработана с использованием фреймворка Spring Boot, который был выбран благодаря его способности обеспечивать быструю разработку, встроенной поддержке множества технологий и обширному сообществу. Spring Boot упрощает создание автономных производственных приложений на основе Spring, минимизируя необходимость в сложной конфигурации.
+
+Архитектура серверной части следует классической многоуровневой модели, включающей уровень контроллеров (Controller), сервисов (Service) и репозиториев (Repository), что обеспечивает четкое разделение ответственности и повышает тестируемость и поддерживаемость кода.
+
+Контроллеры отвечают за обработку входящих HTTP-запросов, их валидацию и передачу данных на уровень сервисов. Они определяют API эндпоинты приложения. Например, контроллер AuthController обрабатывает запросы, связанные с аутентификацией и регистрацией пользователей, как показано в следующем фрагменте кода, где определяется эндпоинт для входа пользователя.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/auth")
+public class AuthController {
+	private final UserServiceImpl userService;
+	// ... другие методы ...
+	@PostMapping("/login")
+	public JwtDto loginUser(@RequestBody UserLoginRequest userLoginRequest) {
+		return userService.loginUser(userLoginRequest);
+	}
+}
+\end{Verbatim}
+\endgroup
+
+Уровень сервисов инкапсулирует основную бизнес-логику приложения. Сервисы координируют взаимодействие между контроллерами и репозиториями, выполняют операции над данными и реализуют специфические для домена правила. Пример реализации метода loginUser в классе UserServiceImpl, который проверяет учетные данные пользователя и генерирует JWT-токен, представлен ниже.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+	private final UserRepository userRepository;
+	private final PasswordEncoder passwordEncoder;
+	private final JwtUtils jwtUtils;
+	// ... другие зависимости ...
+	@Override
+	public JwtDto loginUser(UserLoginRequest userLoginRequest) {
+		Optional<User> user = userRepository
+			.findByUsername(userLoginRequest.username());
+		if (user.isEmpty()) {
+			throw new UnauthorizedException("Username not found");
+		}
+		if (!passwordEncoder.matches(userLoginRequest.password(), 
+			user.get().getPassword())) {
+			throw new UnauthorizedException("Wrong password");
+		}
+		return jwtUtils.generateToken(user.get().getUsername(), 
+			user.get().getId(), user.get().getRoles());
+	}
+	// ... другие методы ...
+}
+\end{Verbatim}
+\endgroup
+
+Для взаимодействия с базой данных используется Spring Data JPA, который значительно упрощает создание уровня доступа к данным. Интерфейсы репозиториев, такие как UserRepository, наследуются от JpaRepository, что автоматически предоставляет стандартные CRUD-операции и возможность определения кастомных запросов.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+	Optional<User> findByUsername(String username);
+}
+\end{Verbatim}
+\endgroup
+
+Модель данных представлена JPA-сущностями (Entities), такими как User, Category, Question, Chat, Message. Эти классы аннотированы для маппинга на таблицы реляционной базы данных. Сущность User, например, содержит информацию о пользователе, его учетные данные и связи с другими сущностями.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+@Getter
+@Setter
+@Entity
+@Table(name="users")
+public class User extends AbstractEntity {
+	@Column(nullable = false, unique = true)
+	private String username;
+	@Column(nullable = false)
+	private String password;
+	// ... другие поля и связи ...
+}
+\end{Verbatim}
+\endgroup
+
+Для обмена данными между клиентом и сервером, а также между различными слоями приложения, активно используются объекты передачи данных (DTO). Они представляют собой простые Java-классы (часто реализуемые как records), которые определяют структуру данных для запросов и ответов. Пример DTO для запроса на вход пользователя UserLoginRequest:
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+public record UserLoginRequest(String username, String password) {
+}
+\end{Verbatim}
+\endgroup
+
+Безопасность приложения обеспечивается с помощью Spring Security и механизма аутентификации на основе JSON Web Tokens (JWT). JWT-токены используются для аутентификации пользователей после успешного входа в систему, позволяя им получать доступ к защищенным ресурсам. Центральным элементом системы аутентификации является фильтр JwtAuthenticationFilter. При каждом запросе он извлекает JWT-токен из заголовка Authorization. Если токен присутствует и валиден, из него извлекаются данные пользователя (имя, идентификатор, роли), на основе которых создается объект аутентификации и помещается в SecurityContextHolder, делая пользователя доступным для последующих компонентов системы. Логика работы фильтра показана в следующем фрагменте кода.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+@Override
+protected void doFilterInternal(HttpServletRequest request, 
+HttpServletResponse response, 
+	FilterChain filterChain) throws ServletException, IOException {
+	String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+	if (authHeader != null && authHeader.startsWith("Bearer ")) {
+		JwtDto jwtDto = // ... извлечение токена;
+		if (jwtUtils.validateToken(jwtDto)) {
+			// ... извлечение необходимых параметров из токена
+			UsernamePasswordAuthenticationToken authentication =
+				new UsernamePasswordAuthenticationToken(
+					userDetails, null, authorities
+				);
+			SecurityContextHolder.getContext().setAuthentication(authentication);
+		}
+	}
+	filterChain.doFilter(request, response);
+}
+\end{Verbatim}
+\endgroup
+Генерация и валидация токенов осуществляется классом JwtUtils, который использует секретный ключ и заданное время жизни токена, настраиваемые в конфигурационном файле application.yaml. Пример метода генерации токена:
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+public class JwtUtils {
+	private String secretKey;
+	private Long expirationTime;
+	public JwtDto generateToken(String username, Long id, String roles) {
+		return new JwtDto(Jwts.builder()
+			.setSubject(username)
+			.claim("id", id)
+			.claim("roles", roles)
+			.setIssuedAt(new Date())
+			.setExpiration(new Date(System.currentTimeMillis() + expirationTime))
+			.signWith(SignatureAlgorithm.HS512, secretKey)
+			.compact());
+	}
+	// ... другие методы валидации и извлечения данных ...
+}
+\end{Verbatim}
+\endgroup
+
+Конфигурация безопасности Spring Security определяется в классе SecurityConfig. В фрагменте кода ниже показано, как настраиваются правила доступа к различным эндпоинтам, отключаются стандартные механизмы (например, CSRF, form login), и JwtAuthenticationFilter встраивается в цепочку фильтров. 
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+@Bean
+public SecurityFilterChain securityFilterChain(
+	JwtAuthenticationFilter jwtAuthenticationFilter, 
+	HttpSecurity http) throws Exception {
+	http
+		.csrf(AbstractHttpConfigurer::disable)
+		.formLogin(AbstractHttpConfigurer::disable)
+		.sessionManagement(config -> config.sessionCreationPolicy(
+			SessionCreationPolicy.STATELESS))
+		.authorizeHttpRequests(auth -> auth
+			.requestMatchers("/api/auth/**").permitAll()
+			.requestMatchers("/api-docs/**").permitAll()
+			// ... другие разрешенные пути ...
+			.anyRequest().authenticated()
+		)
+		.addFilterBefore(jwtAuthenticationFilter, 
+			UsernamePasswordAuthenticationFilter.class);
+	return http.build();
+}
+\end{Verbatim}
+\endgroup
+Разграничение доступа на уровне методов контроллеров или сервисов осуществляется с использованием аннотаций, таких как @PreAuthorize("hasRole('ADMIN')"), что позволяет гибко управлять правами доступа к отдельным операциям.
+
+Для хранения пользовательских изображений (аватары, изображения в чатах) используется интеграция с S3-совместимым хранилищем MinIO. Сервис ImageServiceImpl отвечает за загрузку файлов в MinIO, генерацию уникальных имен файлов и предоставление URL для доступа к ним. Загрузка происходит через MinioClient, настроенный в MinioConfig.
+
+Для реализации функции подбора подходящих пользователей (мэтчинга) серверная часть приложения интегрируется с внешним специализированным сервисом рекомендаций. Взаимодействие с этим сервисом осуществляется посредством HTTP-клиента, реализованного с использованием декларативного подхода Spring. Интерфейс MatchingClient определяет контракт взаимодействия, используя аннотацию @PostExchange для указания эндпоинта и типа запроса. Пример объявления клиента представлен ниже.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+public interface MatchingClient {
+	@PostExchange("/api/matching")
+	List<MatchingResponse> getMatching(
+	@RequestBody MatchingRequest request);
+}
+\end{Verbatim}
+\endgroup
+
+Конфигурация данного клиента, включая базовый URL внешнего сервиса, вынесена в отдельный класс свойств MatchingClientProperties, значения для которого загружаются из основного конфигурационного файла приложения application.yaml. Это обеспечивает гибкость настройки адреса сервиса рекомендаций без необходимости изменения кода.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+@Data
+@Configuration
+@ConfigurationProperties(prefix = "rest.client.matching",
+ignoreUnknownFields = false)
+public class MatchingClientProperties {
+	private String baseUrl;
+}
+\end{Verbatim}
+\endgroup
+
+Создание и настройка экземпляра MatchingClient происходит в конфигурационном классе RestClientConfig. В коде ниже показано, как используется RestClient.Builder для базовой настройки HTTP-клиента (например, указания baseUrl из MatchingClientProperties) и HttpServiceProxyFactory для создания прокси-объекта, реализующего интерфейс MatchingClient. Такой подход позволяет абстрагироваться от низкоуровневых деталей выполнения HTTP-запросов, сосредотачиваясь на бизнес-логике.
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+@Bean
+public MatchingClient matchingClient(RestClient.Builder builder,
+MatchingClientProperties properties) {
+	RestClient restClient = builder
+		.baseUrl(properties.getBaseUrl())
+		.build();
+	RestClientAdapter adapter = RestClientAdapter
+		.create(restClient);
+	HttpServiceProxyFactory factory = HttpServiceProxyFactory
+		.builderFor(adapter)
+		.build();
+	return factory.createClient(MatchingClient.class);
+}
+\end{Verbatim}
+\endgroup
+
+При необходимости получения рекомендаций, соответствующий сервис серверной части (MatchingServiceImpl) подготавливает объект MatchingRequest, содержащий данные о текущем пользователе, других пользователях и их ответах на вопросы. Этот объект передается методу getMatching клиента MatchingClient, который выполняет HTTP-запрос к внешнему сервису и возвращает список подходящих кандидатов в виде объектов MatchingResponse.
+
+Управление схемой базы данных и ее миграциями осуществляется с помощью Liquibase. Изменения схемы описываются в XML или YAML файлах (ченджлогах), что обеспечивает версионирование и контролируемое обновление структуры БД. Пример ченджлога для создания таблицы категорий:
+
+\begingroup
+\small\ttfamily
+\begin{Verbatim}
+databaseChangeLog:
+  - changeSet:
+	id: add_base_category_and_questions
+	  author: soup
+	  changes:
+		- insert:
+		  tableName: category
+		  columns:
+			- column:
+			  name: name
+			  value: 'BaseCategory'
+			- column:
+			  name: question_count
+			  valueNumeric: 0
+\end{Verbatim}
+\endgroup
+
+Все основные конфигурационные параметры приложения, такие как настройки подключения к БД, параметры JWT, адреса внешних сервисов и MinIO, вынесены в файл application.yaml, что позволяет гибко настраивать приложение для различных окружений.
+
+Таким образом, серверная часть приложения представляет собой структурированную систему, использующую современные подходы и технологии для обеспечения функциональности, безопасности и масштабируемости мобильного приложения для знакомств.
