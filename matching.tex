@@ -49,13 +49,13 @@ def ternarize(value):
 		return -1
 	return 0
 	
-	ternary_features = ["sports", "tvsports", ..., "amb3_1"]
-	df_ternary = df[["iid"] + ternary_features].copy()
-	
-	for feature in ternary_features:
+ternary_features = ["sports", "tvsports", ..., "amb3_1"]
+df_ternary = df[["iid"] + ternary_features].copy()
+
+for feature in ternary_features:
 	df_ternary[feature] = df_ternary[feature].apply(ternarize)
-	
-	df_ternary = df_ternary.drop_duplicates(subset=['iid'], keep='first')
+
+df_ternary = df_ternary.drop_duplicates(subset=['iid'], keep='first')
 \end{Verbatim}
 \endgroup
 

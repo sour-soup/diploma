@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: bim-bim
+  datasource:
+    url: jdbc:postgresql://localhost:5432/db
+    username: db
+    password: db
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  liquibase:
+    enabled: true
+    change-log: classpath:/db/changelog/master-changelog.yaml
+
+rest:
+  client:
+    matching:
+      base-url: http://localhost:8000
+
+jwt:
+  secretKey: alskdjsdfhlaksdjffhladkfsfhldaksadfhladasdfhljlfhaklfkjadsfhjadkslffhdajlskffhjldkasdfhjkladasdfhjlkasdfjlasdfjkdhsajflfhdsljkffhdasljkfhdasdjklflfhladjsffhaljdssdfhjlkadsasdfhjklsdaasdfhlasdfhladasdflhfhs
+  expirationTime: 3600000 # 1 hour in milliseconds
+
+springdoc:
+  swagger-ui:
+    path: /api-docs
+
+minio:
+  bucket: images
+  access-key: bimbimbambam
+  secret-key: bimbimbambam
+  url: http://192.168.47.16:9000
+

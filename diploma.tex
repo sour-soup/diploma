@@ -33,6 +33,26 @@
 \usepackage{array}
 \usepackage[english,russian]{babel}
 \usepackage{tempora}
+\usepackage{listings}
+
+\lstdefinestyle{mystyle}{
+	basicstyle=\ttfamily\fontsize{12}{14}\selectfont, % Моноширинный шрифт, размер 12pt,
+	numbers=left,                                     % Нумерация строк слева
+	numberstyle=\tiny,                                % Мелкий шрифт для номеров строк
+	stepnumber=1,                                     % Нумеровать каждую строку
+	numbersep=10pt,                                   % Отступ между кодом и номерами строк
+	frame=single,                                     % Рамка вокруг кода
+	breaklines=true,                                  % Перенос строк
+	breakatwhitespace=false,                          % Переносить строки не обязательно по пробелам
+	showstringspaces=false,                           % Не показывать спецсимволы в строках
+	tabsize=4,                                        % Размер табуляции
+	keepspaces=true,                                  % Сохранять пробелы
+	columns=fullflexible,                             % Более правильное распределение ширины
+	captionpos=b,        % подпись внизу (b = bottom)
+	%abovecaptionskip=0pt,% убрать лишние отступы
+	%belowcaptionskip=10pt% небольшой отступ после подписи
+}
+\lstset{style=mystyle}
 
 \usepackage[colorlinks=false]{hyperref}
 
@@ -73,5 +93,7 @@
 
 \bibliographystyle{gost}
 \bibliography{thesis}
+
+\input{applications}
 
 \end{document}
