@@ -256,10 +256,3 @@ class _ChatPageState extends State<ChatPage> {
                   child: const Icon(Icons.send, color: Colors.black),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
